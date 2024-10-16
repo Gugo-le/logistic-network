@@ -9,7 +9,27 @@ def euclidean_distance(node1, node2, positions):
     x2, y2 = positions[node2]
     return math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
 
-# 다익스트라 알고리즘 변형: 모든 노드를 순회
+# 다익스트라 알고리즘 (한 쌍의 노드 간 최단 경로)
+def dijkstra(graph, start):
+    distances = {node: float('inf') for node in graph}
+    distances[start] = 0
+    priority_queue = [(0, start)]
+    
+    while priority_queue:
+        current_distance, current_node = heapq.heappop(priority_queue)
+        
+        if current_distance > distances[current_node]:
+            continue
+        
+        for neighbor, weight in graph[current_node].items():
+            distance = current_distance + weight
+            if distance < distances[neighbor]:
+                distances[neighbor] = distance
+                heapq.heappush(priority_queue, (distance, neighbor))
+    
+    return distances
+
+# 다익스트라 기반 TSP: 모든 노드를 순회
 def dijkstra_tsp(graph, start, positions):
     nodes = list(graph.keys())
     nodes.remove(start)
@@ -17,30 +37,48 @@ def dijkstra_tsp(graph, start, positions):
     shortest_distance = float('inf')
     best_path = []
 
-    # 모든 경로 순열을 순회
     for perm in permutations(nodes):
         current_distance = 0
-        current_path = [start]
         current_node = start
         
-        # 순열 경로에 따라 거리 계산
+        # 순열 경로에 따라 다익스트라로 경로 계산
         for next_node in perm:
-            current_distance += euclidean_distance(current_node, next_node, positions)
-            current_path.append(next_node)
+            distances = dijkstra(graph, current_node)
+            current_distance += distances[next_node]
             current_node = next_node
         
-        # 마지막 노드에서 시작점으로 돌아오는 거리 추가
-        current_distance += euclidean_distance(current_node, start, positions)
-        current_path.append(start)
+        distances = dijkstra(graph, current_node)
+        current_distance += distances[start]
         
-        # 최단 거리 및 경로 갱신
         if current_distance < shortest_distance:
             shortest_distance = current_distance
-            best_path = current_path
+            best_path = [start] + list(perm) + [start]
     
     return shortest_distance, best_path
 
-# A* 알고리즘 변형: 모든 노드를 순회
+# A* 알고리즘 (한 쌍의 노드 간 경로 탐색)
+def a_star(graph, start, goal, positions):
+    open_set = []
+    heapq.heappush(open_set, (0, start))
+    g_score = {node: float('inf') for node in graph}
+    g_score[start] = 0
+    
+    while open_set:
+        _, current = heapq.heappop(open_set)
+        
+        if current == goal:
+            return g_score[current]
+        
+        for neighbor, weight in graph[current].items():
+            tentative_g_score = g_score[current] + weight
+            if tentative_g_score < g_score[neighbor]:
+                g_score[neighbor] = tentative_g_score
+                f_score = tentative_g_score + euclidean_distance(neighbor, goal, positions)
+                heapq.heappush(open_set, (f_score, neighbor))
+    
+    return float('inf')
+
+# A* 기반 TSP: 모든 노드를 순회
 def a_star_tsp(graph, start, positions):
     nodes = list(graph.keys())
     nodes.remove(start)
@@ -48,30 +86,27 @@ def a_star_tsp(graph, start, positions):
     shortest_distance = float('inf')
     best_path = []
 
-    # 모든 경로 순열을 순회
+
     for perm in permutations(nodes):
         current_distance = 0
-        current_path = [start]
         current_node = start
 
-        # 순열 경로에 따라 A* 탐색
+        # 순열 경로에 따라 A*로 경로 계산
         for next_node in perm:
-            current_distance += euclidean_distance(current_node, next_node, positions)
-            current_path.append(next_node)
+            current_distance += a_star(graph, current_node, next_node, positions)
             current_node = next_node
 
         # 마지막 노드에서 다시 시작점으로 돌아오는 거리 추가
-        current_distance += euclidean_distance(current_node, start, positions)
-        current_path.append(start)
+        current_distance += a_star(graph, current_node, start, positions)
 
         # 최단 경로 및 거리 갱신
         if current_distance < shortest_distance:
             shortest_distance = current_distance
-            best_path = current_path
+            best_path = [start] + list(perm) + [start]
 
     return shortest_distance, best_path
 
-# 복잡한 그래프 정의
+
 graph = {
     'Warehouse1': {'A': 2, 'B': 5, 'C': 1},
     'Warehouse2': {'B': 3, 'E': 2},
@@ -86,7 +121,7 @@ graph = {
     'Destination2': {'D': 8, 'F': 9, 'G': 3}
 }
 
-# 각 노드의 좌표 (유클리드 거리 계산에 사용)
+# 각 노드의 좌표 (이전과 동일)
 positions = {
     'Warehouse1': (0, 0),
     'Warehouse2': (5, 0),
